@@ -90,3 +90,296 @@
     max-width: 100%;
     border-radius: 10px;
     margin-top: 6px;
+    display: block;
+  }
+  .attach-preview {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f4f4f3;
+    border-top: 1px solid #e7e5e4;
+    font-size: 13px;
+    color: #57534e;
+  }
+  .attach-preview img, .attach-preview video {
+    height: 36px;
+    border-radius: 6px;
+  }
+  .attach-preview button {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #b91c1c;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 16px;
+    border-top: 1px solid #e7e5e4;
+    background: #fff;
+    align-items: flex-end;
+  }
+  .chat-input-row textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid #d6d3d1;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    max-height: 120px;
+  }
+  .chat-input-row textarea:focus {
+    outline: 2px solid #4f46e5;
+    outline-offset: -1px;
+  }
+  .icon-btn {
+    background: #f4f4f3;
+    color: #57534e;
+    border: 1px solid #e7e5e4;
+    border-radius: 12px;
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .chat-input-row button.send {
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 0 18px;
+    height: 42px;
+    font-size: 15px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .chat-input-row button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .typing {
+    align-self: flex-start;
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #e7e5e4;
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+  }
+  .typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #a8a29e;
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header">
+    <span>Q&A Assistant</span>
+    <button class="mode-btn" id="modeBtn">🎨 Generate image</button>
+  </div>
+  <div class="chat-messages" id="messages"></div>
+
+  <div class="attach-preview" id="attachPreview">
+    <span id="attachThumbWrap"></span>
+    <span id="attachName"></span>
+    <button id="removeAttach">Remove</button>
+  </div>
+
+  <div class="chat-input-row">
+    <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" />
+    <button class="icon-btn" id="attachBtn" title="Attach photo or video">📎</button>
+    <textarea id="input" rows="1" placeholder="Ask a question..."></textarea>
+    <button class="send" id="sendBtn">Send</button>
+  </div>
+</div>
+
+<script>
+  const CHAT_ENDPOINT = "/api/chat";
+
+  const messagesEl = document.getElementById("messages");
+  const inputEl = document.getElementById("input");
+  const sendBtn = document.getElementById("sendBtn");
+  const attachBtn = document.getElementById("attachBtn");
+  const fileInput = document.getElementById("fileInput");
+  const attachPreview = document.getElementById("attachPreview");
+  const attachThumbWrap = document.getElementById("attachThumbWrap");
+  const attachName = document.getElementById("attachName");
+  const removeAttach = document.getElementById("removeAttach");
+  const modeBtn = document.getElementById("modeBtn");
+
+  let history = [];
+  let pendingFile = null; // { data: base64, mimeType, previewUrl, isVideo }
+  let imageMode = false;
+
+  // ---- Attach photo/video ----
+  attachBtn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(",")[1];
+      pendingFile = {
+        data: base64,
+        mimeType: file.type,
+        previewUrl: reader.result,
+        isVideo: file.type.startsWith("video/"),
+      };
+      attachThumbWrap.innerHTML = pendingFile.isVideo
+        ? `<video src="${pendingFile.previewUrl}"></video>`
+        : `<img src="${pendingFile.previewUrl}" />`;
+      attachName.textContent = file.name;
+      attachPreview.style.display = "flex";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  removeAttach.addEventListener("click", () => {
+    pendingFile = null;
+    fileInput.value = "";
+    attachPreview.style.display = "none";
+  });
+
+  // ---- Toggle image-generation mode ----
+  modeBtn.addEventListener("click", () => {
+    imageMode = !imageMode;
+    modeBtn.classList.toggle("active", imageMode);
+    inputEl.placeholder = imageMode ? "Describe any image to generate..." : "Ask a question...";
+  });
+
+  // ---- Rendering ----
+  function addMessage(role, { text, mediaUrl, isVideo } = {}) {
+    const div = document.createElement("div");
+    div.className = "msg " + role;
+    if (text) {
+      const p = document.createElement("div");
+      p.textContent = text;
+      div.appendChild(p);
+    }
+    if (mediaUrl) {
+      const el = document.createElement(isVideo ? "video" : "img");
+      el.src = mediaUrl;
+      if (isVideo) el.controls = true;
+      div.appendChild(el);
+    }
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const div = document.createElement("div");
+    div.className = "typing";
+    div.id = "typingIndicator";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function hideTyping() {
+    const el = document.getElementById("typingIndicator");
+    if (el) el.remove();
+  }
+
+  // ---- Send a normal chat message (with optional attachment) ----
+  async function sendChatMessage(text) {
+    const userMsg = { role: "user", content: text };
+    if (pendingFile) {
+      userMsg.file = { data: pendingFile.data, mimeType: pendingFile.mimeType };
+    }
+    addMessage("user", {
+      text,
+      mediaUrl: pendingFile ? pendingFile.previewUrl : null,
+      isVideo: pendingFile ? pendingFile.isVideo : false,
+    });
+    history.push(userMsg);
+    pendingFile = null;
+    fileInput.value = "";
+    attachPreview.style.display = "none";
+
+    showTyping();
+    try {
+      const res = await fetch(CHAT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      const data = await res.json();
+      hideTyping();
+      if (data.reply) {
+        addMessage("assistant", { text: data.reply });
+        history.push({ role: "assistant", content: data.reply });
+      } else {
+        addMessage("error", { text: "Error: " + (data.error || "unknown error") });
+      }
+    } catch (err) {
+      hideTyping();
+      addMessage("error", { text: "Network error: " + err.message });
+    }
+  }
+
+  // ---- Generate an image (via Pollinations.ai, free, no key needed) ----
+  async function sendImageRequest(prompt) {
+    addMessage("user", { text: prompt });
+    showTyping();
+    try {
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true`;
+      hideTyping();
+      addMessage("assistant", { mediaUrl: url });
+    } catch (err) {
+      hideTyping();
+      addMessage("error", { text: "Couldn't generate that image. Try again." });
+    }
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text && !pendingFile) return;
+    inputEl.value = "";
+    sendBtn.disabled = true;
+
+    if (imageMode) {
+      await sendImageRequest(text);
+    } else {
+      await sendChatMessage(text);
+    }
+
+    sendBtn.disabled = false;
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // Register service worker so Android/Chrome offers "Install app"
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.log("Service worker registration failed:", err);
+    });
+  }
+</script>
+
+</body>
+</html>
