@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AI Workspace</title>
   
   <!-- Markdown Parser & Code Syntax Highlighting -->
@@ -12,7 +12,17 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { display: flex; height: 100vh; width: 100vw; background: #0b0f17; color: #e2e8f0; overflow: hidden; }
+    
+    /* Using 100dvh prevents mobile address bar from hiding the bottom input */
+    html, body { 
+      height: 100vh; 
+      height: 100dvh; 
+      width: 100vw; 
+      background: #0b0f17; 
+      color: #e2e8f0; 
+      overflow: hidden; 
+      position: relative;
+    }
 
     /* Dimmed Backdrop when Sidebar is Open */
     #sidebar-overlay {
@@ -54,8 +64,16 @@
     .delete-btn { color: #64748b; cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; opacity: 0.7; }
     .delete-btn:hover { color: #f87171; background: #334155; opacity: 1; }
 
-    /* Main Container Structure */
-    #chat-container { flex: 1; display: flex; flex-direction: column; height: 100vh; width: 100%; background: #0b0f17; }
+    /* Main Container */
+    #chat-container { 
+      display: flex; 
+      flex-direction: column; 
+      height: 100vh; 
+      height: 100dvh; 
+      width: 100%; 
+      background: #0b0f17; 
+      position: relative;
+    }
     
     .top-bar { display: flex; align-items: center; padding: 12px 16px; background: #0b0f17; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .toggle-btn {
@@ -64,11 +82,11 @@
     }
     .toggle-btn:hover { background: #1e293b; color: #fff; }
 
-    /* Messages Area */
+    /* Messages Area with Padding for Fixed Bottom Input */
     #messages { 
       flex: 1; 
       overflow-y: auto; 
-      padding: 20px 16px; 
+      padding: 20px 16px 90px; /* 90px bottom padding so messages don't get covered */
       display: flex; 
       flex-direction: column; 
       gap: 20px; 
@@ -80,7 +98,7 @@
     
     .empty-state {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; color: #64748b; margin-top: 20px;
+      text-align: center; color: #64748b; margin-top: 10px;
     }
     .empty-state h2 { color: #f8fafc; font-size: 22px; margin-bottom: 8px; font-weight: 600; }
     .empty-state p { font-size: 14px; margin-bottom: 24px; }
@@ -122,13 +140,16 @@
     }
     .copy-btn:hover { background: #334155; color: #fff; }
 
-    /* Permanently Fixed Input Container */
+    /* ABSOLUTE FIXED INPUT BAR AT SCREEN BOTTOM */
     .input-wrapper {
-      flex-shrink: 0;
-      padding: 12px 16px 16px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 16px;
       background: #0b0f17;
       border-top: 1px solid #1e293b;
-      width: 100%;
+      z-index: 10;
     }
     #input-form {
       max-width: 800px; margin: 0 auto; display: flex; background: #111625;
@@ -172,7 +193,7 @@
 
     <div id="messages"></div>
 
-    <!-- Pinned Input Bar at Bottom -->
+    <!-- Strictly Fixed Input Bar at Screen Bottom -->
     <div class="input-wrapper">
       <form id="input-form" onsubmit="handleSend(event)">
         <input 
