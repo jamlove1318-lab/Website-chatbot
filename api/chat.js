@@ -1,7 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
+// Vercel serverless function: /api/chat
 export default async function handler(req, res) {
-  // CORS Headers
+  // Set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -21,37 +20,39 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Messages array is required" });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY environment variable is missing" });
-    }
-
-    // Initialize Google Generative AI SDK
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    // Separate conversation history from the latest prompt
-    const historyMessages = messages.slice(0, -1);
-    const latestMessage = messages[messages.length - 1];
-
-    // Format history for the SDK
-    const formattedHistory = historyMessages.map((m) => ({
+    // Convert messages for Google Gemini API format
+    const contents = messages.map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }],
     }));
 
-    // Start chat session with formatted history
-    const chat = model.startChat({
-      history: formattedHistory,
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "GEMINI_API_KEY environment variable is not set" });
+    }
+
+    // Call active gemini-2.0-flash endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents }),
     });
 
-    // Send latest message
-    const result = await chat.sendMessage(latestMessage.content);
-    const responseText = result.response.text();
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Gemini API Error:", errText);
+      return res.status(response.status).json({ error: errText });
+    }
 
-    return res.status(200).json({ reply: responseText });
+    const data = await response.json();
+    const replyText =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text || "No text generated.";
+
+    return res.status(200).json({ reply: replyText });
   } catch (err) {
-    console.error("Gemini SDK Error:", err);
-    return res.status(500).json({ error: err.message || "Failed to generate response" });
+    console.error("Server Error:", err);
+    return res.status(500).json({ error: "Server failed to process request" });
   }
 }
