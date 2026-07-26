@@ -1,4 +1,5 @@
-// Vercel serverless function: /api/chat
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 export default async function handler(req, res) {
   // CORS Headers
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -20,35 +21,37 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Messages array is required" });
     }
 
-    // Convert messages for Google Gemini API format
-    const contents = messages.map((m) => ({
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "GEMINI_API_KEY environment variable is missing" });
+    }
+
+    // Initialize Google Generative AI SDK
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Separate conversation history from the latest prompt
+    const historyMessages = messages.slice(0, -1);
+    const latestMessage = messages[messages.length - 1];
+
+    // Format history for the SDK
+    const formattedHistory = historyMessages.map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }],
     }));
 
-    // Use stable gemini-1.5-flash endpoint
-    const apiKey = process.env.GEMINI_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents }),
+    // Start chat session with formatted history
+    const chat = model.startChat({
+      history: formattedHistory,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Gemini API Error:", errText);
-      return res.status(response.status).json({ error: errText });
-    }
+    // Send latest message
+    const result = await chat.sendMessage(latestMessage.content);
+    const responseText = result.response.text();
 
-    const data = await response.json();
-    const replyText =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || "No text generated.";
-
-    return res.status(200).json({ reply: replyText });
+    return res.status(200).json({ reply: responseText });
   } catch (err) {
-    console.error("Server Error:", err);
-    return res.status(500).json({ error: "Server failed to process request" });
+    console.error("Gemini SDK Error:", err);
+    return res.status(500).json({ error: err.message || "Failed to generate response" });
   }
 }
