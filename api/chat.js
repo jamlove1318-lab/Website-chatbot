@@ -1,10 +1,6 @@
 // Vercel serverless function: /api/chat
-// Uses Google's Gemini API (free tier) instead of the paid Claude API.
-// Your Gemini API key stays here on the server, never exposed to visitors.
-
-const GEMINI_MODEL = "gemini-flash-latest"; // always points to Google's current stable Flash model
-
 export default async function handler(req, res) {
+  // Set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -20,30 +16,19 @@ export default async function handler(req, res) {
   try {
     const { messages } = req.body;
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: "messages array is required" });
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Messages array is required" });
     }
 
-    // Gemini uses "user"/"model" roles. Each message can carry text and/or
-    // an attached photo/video, sent from the frontend as base64 + mimeType.
-    const contents = messages.map((m) => {
-      const parts = [];
-      if (m.content) parts.push({ text: m.content });
-      if (m.file) {
-        parts.push({
-          inlineData: {
-            mimeType: m.file.mimeType,
-            data: m.file.data, // base64 string, no data: prefix
-          },
-        });
-      }
-      return {
-        role: m.role === "assistant" ? "model" : "user",
-        parts,
-      };
-    });
+    // Convert chat history format for Gemini API
+    const contents = messages.map((m) => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.content }],
+    }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    // Call Gemini 2.5 Flash API endpoint
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -53,17 +38,18 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errText = await response.text();
+      console.error("Gemini API Error:", errText);
       return res.status(response.status).json({ error: errText });
     }
 
     const data = await response.json();
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("\n") ||
-      "Sorry, I couldn't generate a response.";
+    const replyText =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text || "No text generated.";
 
-    return res.status(200).json({ reply });
+    // Always send the output under the 'reply' key
+    return res.status(200).json({ reply: replyText });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
+    console.error("Server Error:", err);
+    return res.status(500).json({ error: "Server failed to process request" });
   }
 }
