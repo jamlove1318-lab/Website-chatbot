@@ -1,6 +1,6 @@
 // Vercel serverless function: /api/chat
 export default async function handler(req, res) {
-  // Set CORS headers
+  // CORS Headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -20,15 +20,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Messages array is required" });
     }
 
-    // Convert chat history format for Gemini API
+    // Convert messages for Google Gemini API format
     const contents = messages.map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }],
     }));
 
-    // Call Gemini 2.5 Flash API endpoint
+    // Use stable gemini-1.5-flash endpoint
     const apiKey = process.env.GEMINI_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -46,7 +46,6 @@ export default async function handler(req, res) {
     const replyText =
       data?.candidates?.[0]?.content?.parts?.[0]?.text || "No text generated.";
 
-    // Always send the output under the 'reply' key
     return res.status(200).json({ reply: replyText });
   } catch (err) {
     console.error("Server Error:", err);
