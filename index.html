@@ -12,27 +12,23 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { display: flex; height: 100vh; background: #0b0f17; color: #e2e8f0; overflow: hidden; }
+    body { display: flex; height: 100vh; width: 100vw; background: #0b0f17; color: #e2e8f0; overflow: hidden; }
 
-    /* Overlay for mobile drawer */
+    /* Dimmed Backdrop when Sidebar is Open */
     #sidebar-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 15;
-      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
     }
     #sidebar-overlay.active { opacity: 1; pointer-events: auto; }
 
-    /* Sidebar Drawer */
+    /* Side Panel - Default Hidden Off-Screen */
     #sidebar {
-      width: 280px; background: #111625; display: flex; flex-direction: column; padding: 16px;
-      transition: transform 0.3s ease; z-index: 20; border-right: 1px solid #1e293b;
-      position: absolute; top: 0; bottom: 0; left: 0;
+      position: fixed; top: 0; bottom: 0; left: 0;
+      width: 270px; background: #111625; display: flex; flex-direction: column; padding: 16px;
+      z-index: 20; border-right: 1px solid #1e293b;
+      transform: translateX(-100%); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    @media (min-width: 768px) {
-      #sidebar { position: relative; transform: none !important; }
-      #sidebar.hidden { margin-left: -280px; }
-      #sidebar-overlay { display: none !important; }
-    }
-    #sidebar.closed { transform: translateX(-100%); }
+    #sidebar.open { transform: translateX(0); }
 
     .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .brand-title { font-size: 18px; font-weight: 700; color: #f8fafc; letter-spacing: 0.5px; }
@@ -46,7 +42,7 @@
 
     .section-title { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; margin: 20px 8px 8px; letter-spacing: 0.8px; }
 
-    /* Chat History */
+    /* Chat History List */
     #chat-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
     .chat-item {
       display: flex; align-items: center; justify-content: space-between;
@@ -58,37 +54,23 @@
     .delete-btn { color: #64748b; cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; opacity: 0.7; }
     .delete-btn:hover { color: #f87171; background: #334155; opacity: 1; }
 
-    /* Profile Footer */
-    .user-profile {
-      display: flex; align-items: center; gap: 12px; padding: 12px 8px;
-      border-top: 1px solid #1e293b; margin-top: auto;
-    }
-    .avatar {
-      width: 34px; height: 34px; border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb, #38bdf8);
-      color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
-    }
-    .user-info { display: flex; flex-direction: column; font-size: 13px; }
-    .user-name { font-weight: 600; color: #fff; }
-    .user-status { font-size: 11px; color: #38bdf8; font-weight: 500; }
-
-    /* Main Container (Flex column prevents input from disappearing) */
-    #chat-container { flex: 1; display: flex; flex-direction: column; height: 100vh; background: #0b0f17; }
+    /* Main Container Structure */
+    #chat-container { flex: 1; display: flex; flex-direction: column; height: 100vh; width: 100%; background: #0b0f17; }
     
-    .top-bar { display: flex; align-items: center; padding: 12px 20px; background: #0b0f17; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+    .top-bar { display: flex; align-items: center; padding: 12px 16px; background: #0b0f17; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .toggle-btn {
       background: #111625; border: 1px solid #1e293b; color: #94a3b8; cursor: pointer;
       padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
     }
     .toggle-btn:hover { background: #1e293b; color: #fff; }
 
-    /* Messages Container - Expands to fill available space and scrolls */
+    /* Messages Area */
     #messages { 
       flex: 1; 
       overflow-y: auto; 
       padding: 20px 16px; 
       display: flex; 
-      flex-direction: column;
+      flex-direction: column; 
       gap: 20px; 
       max-width: 800px; 
       width: 100%; 
@@ -112,7 +94,7 @@
     }
     .suggestion-card:hover { border-color: #38bdf8; color: #f8fafc; background: #1e293b; }
 
-    /* Message Formatting */
+    /* Message Rows */
     .message-row { display: flex; gap: 12px; width: 100%; }
     .message-row.user-row { justify-content: flex-end; }
     
@@ -140,10 +122,10 @@
     }
     .copy-btn:hover { background: #334155; color: #fff; }
 
-    /* Permanent Fixed Input Wrapper */
+    /* Permanently Fixed Input Container */
     .input-wrapper {
       flex-shrink: 0;
-      padding: 16px;
+      padding: 12px 16px 16px;
       background: #0b0f17;
       border-top: 1px solid #1e293b;
       width: 100%;
@@ -160,10 +142,11 @@
 </head>
 <body>
 
-  <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <!-- Backdrop for side panel -->
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 
-  <!-- Sidebar Drawer -->
-  <aside id="sidebar" class="closed">
+  <!-- Side Panel Drawer -->
+  <aside id="sidebar">
     <div class="sidebar-header">
       <span class="brand-title">AI Assistant</span>
     </div>
@@ -174,20 +157,12 @@
 
     <div class="section-title">History</div>
     <div id="chat-list"></div>
-
-    <div class="user-profile">
-      <div class="avatar">G</div>
-      <div class="user-info">
-        <span class="user-name">Gopal Parmar</span>
-        <span class="user-status">Pro Member</span>
-      </div>
-    </div>
   </aside>
 
-  <!-- Main View -->
+  <!-- Main Chat Window -->
   <main id="chat-container">
     <div class="top-bar">
-      <button class="toggle-btn" onclick="toggleSidebar()">
+      <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="4" y1="8" x2="20" y2="8"></line>
           <line x1="4" y1="16" x2="20" y2="16"></line>
@@ -195,13 +170,19 @@
       </button>
     </div>
 
-    <!-- Scrollable Message List -->
     <div id="messages"></div>
 
     <!-- Pinned Input Bar at Bottom -->
     <div class="input-wrapper">
       <form id="input-form" onsubmit="handleSend(event)">
-        <input type="text" id="message-input" placeholder="Ask anything..." required autocomplete="off">
+        <input 
+          type="text" 
+          id="message-input" 
+          placeholder="Ask anything..." 
+          required 
+          autocomplete="off"
+          onfocus="closeSidebar()"
+        >
         <button type="submit" id="send-btn">Send</button>
       </form>
     </div>
@@ -229,9 +210,15 @@
     function toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebar-overlay');
-      sidebar.classList.toggle('closed');
-      sidebar.classList.toggle('hidden');
+      sidebar.classList.toggle('open');
       overlay.classList.toggle('active');
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      sidebar.classList.remove('open');
+      overlay.classList.remove('active');
     }
 
     function saveToLocalStorage() {
@@ -243,6 +230,7 @@
       if (current && current.messages.length === 0) {
         renderSidebar();
         renderMessages();
+        closeSidebar();
         return;
       }
 
@@ -256,14 +244,14 @@
       saveToLocalStorage();
       renderSidebar();
       renderMessages();
-      if (window.innerWidth < 768) toggleSidebar();
+      closeSidebar();
     }
 
     function selectChat(id) {
       activeSessionId = id;
       renderSidebar();
       renderMessages();
-      if (window.innerWidth < 768) toggleSidebar();
+      closeSidebar();
     }
 
     function deleteChat(id, event) {
@@ -398,6 +386,8 @@
 
     async function handleSend(e) {
       if (e) e.preventDefault();
+      closeSidebar();
+
       const inputEl = document.getElementById('message-input');
       const text = inputEl.value.trim();
       if (!text || !activeSessionId) return;
