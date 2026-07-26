@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.vercel.website_chatbot_brown.twa",
+    "sha256_cert_fingerprints": ["CC:14:5C:EE:79:1B:3A:90:1A:47:68:CC:CE:AE:C8:B5:6F:5A:40:C2:56:A1:D3:19:4C:82:CD:AD:CC:58:72:49"]
+  }
+}]
