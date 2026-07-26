@@ -20,35 +20,31 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Messages array is required" });
     }
 
-    // Convert messages for Google Gemini API format
-    const contents = messages.map((m) => ({
-      role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.content }],
+    // Convert messages to OpenAI-style format that Pollinations expects
+    const formattedMessages = messages.map((m) => ({
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.content,
     }));
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY environment variable is not set" });
-    }
-
-    // Call active gemini-2.0-flash endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
+    // Pollinations anonymous text API — no API key required, free
+    const response = await fetch("https://text.pollinations.ai/openai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents }),
+      body: JSON.stringify({
+        model: "openai", // free anonymous model
+        messages: formattedMessages,
+      }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Gemini API Error:", errText);
+      console.error("Pollinations API Error:", errText);
       return res.status(response.status).json({ error: errText });
     }
 
     const data = await response.json();
     const replyText =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || "No text generated.";
+      data?.choices?.[0]?.message?.content || "No text generated.";
 
     return res.status(200).json({ reply: replyText });
   } catch (err) {
