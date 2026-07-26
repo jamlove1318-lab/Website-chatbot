@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AI Workspace</title>
   
-  <!-- Puter.js (Provides Free, Unlimited AI API without Key Limits) -->
+  <!-- Puter.js (Free Unlimited AI API) -->
   <script src="https://js.puter.com/v2/"></script>
 
   <!-- Markdown Parser & Syntax Highlighting -->
@@ -183,7 +183,7 @@
         <input 
           type="text" 
           id="message-input" 
-          placeholder="Ask anything (Unlimited)..." 
+          placeholder="Ask anything..." 
           required 
           autocomplete="off"
           onfocus="closeSidebar()"
@@ -389,7 +389,6 @@
       });
     }
 
-    // Direct client-side AI chat via Puter.js (Zero rate limits & keyless)
     async function handleSend(e) {
       if (e) e.preventDefault();
       closeSidebar();
@@ -419,19 +418,20 @@
       }
 
       try {
-        // Send history to Puter AI Gateway
-        const response = await puter.ai.chat(
-          activeSession.messages.slice(0, -1).map(m => `${m.role}: ${m.content}`).join('\n')
-        );
+        // Format prompt properly for Puter AI
+        const promptText = activeSession.messages.slice(0, -1).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+
+        // Call puter.ai.chat directly
+        const response = await puter.ai.chat(promptText, { model: 'gpt-4o-mini' });
 
         activeSession.messages.pop(); // Remove "Thinking..."
         
-        const replyText = typeof response === 'string' ? response : (response.message?.content || response.text || "No response.");
+        const replyText = typeof response === 'string' ? response : (response?.message?.content || response?.text || "No response generated.");
         activeSession.messages.push({ role: 'bot', content: replyText });
       } catch (err) {
         console.error(err);
         activeSession.messages.pop();
-        activeSession.messages.push({ role: 'bot', content: 'Error generating response.' });
+        activeSession.messages.push({ role: 'bot', content: 'Error generating response. Please try again.' });
       }
 
       saveToLocalStorage();
