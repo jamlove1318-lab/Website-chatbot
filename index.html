@@ -36,7 +36,6 @@
     .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 0 4px; }
     .brand-title { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
 
-    /* Buttons */
     .new-chat-btn {
       display: flex;
       align-items: center;
@@ -77,7 +76,7 @@
     .chat-item:hover .delete-btn { visibility: visible; }
     .delete-btn:hover { color: #f87171; background: #334155; }
 
-    /* Profile Footer */
+    /* User Profile */
     .user-profile {
       display: flex;
       align-items: center;
@@ -102,7 +101,7 @@
     .user-name { font-weight: 600; color: #fff; }
     .user-status { font-size: 11px; color: #38bdf8; font-weight: 500; }
 
-    /* Main Chat Container */
+    /* Main Container */
     #chat-container { flex: 1; display: flex; flex-direction: column; height: 100vh; background: #0f1117; }
     
     .top-bar { display: flex; align-items: center; padding: 12px 20px; background: #0f1117; border-bottom: 1px solid #1e2230; }
@@ -119,7 +118,7 @@
     }
     .toggle-btn:hover { background: #1e2230; color: #fff; }
 
-    /* Messages & Scroll Area */
+    /* Message List */
     #messages { 
       flex: 1; 
       overflow-y: auto; 
@@ -159,42 +158,51 @@
     }
     .suggestion-card:hover { border-color: #38bdf8; color: #f8fafc; background: #1e2230; }
 
-    /* Message Boxes */
-    .message { max-width: 85%; padding: 14px 18px; border-radius: 14px; line-height: 1.6; font-size: 15px; }
+    /* Messages Formatting */
+    .message { max-width: 90%; padding: 14px 18px; border-radius: 14px; line-height: 1.6; font-size: 15px; }
     .user { background: #2563eb; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
-    .bot { background: #161822; color: #e2e8f0; align-self: flex-start; border: 1px solid #232736; border-bottom-left-radius: 4px; width: 100%; }
+    .bot { background: transparent; color: #e2e8f0; align-self: flex-start; width: 100%; padding-left: 0; }
 
-    /* Formatting Code Blocks */
-    .bot pre {
-      position: relative;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
+    /* Custom Code Cards */
+    .code-card {
+      background: #161822;
+      border: 1px solid #232736;
+      border-radius: 12px;
       margin: 12px 0;
+      overflow: hidden;
+    }
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e2230;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #94a3b8;
+      font-weight: 600;
+      border-bottom: 1px solid #232736;
+    }
+    .code-card pre {
+      margin: 0;
+      padding: 14px;
+      background: #0d1117;
       overflow-x: auto;
     }
-    .bot code { font-family: "Fira Code", Consolas, Monaco, monospace; font-size: 13.5px; }
-    .bot p { margin-bottom: 8px; }
-    .bot p:last-child { margin-bottom: 0; }
-    .bot ul, .bot ol { margin-left: 20px; margin-bottom: 10px; }
+    .code-card code { font-family: "Fira Code", Consolas, Monaco, monospace; font-size: 13.5px; }
 
-    /* Copy Code Button */
     .copy-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: #21262d;
-      color: #c9d1d9;
-      border: 1px solid #30363d;
-      padding: 4px 10px;
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      padding: 3px 10px;
       border-radius: 6px;
       font-size: 12px;
       cursor: pointer;
       transition: all 0.2s;
     }
-    .copy-btn:hover { background: #30363d; color: #fff; }
+    .copy-btn:hover { background: #334155; color: #fff; }
 
-    /* Input Area */
+    /* Input Box */
     .input-wrapper { padding: 20px; max-width: 850px; width: 100%; margin: 0 auto; }
     #input-form { display: flex; background: #161822; border-radius: 16px; padding: 8px 12px; align-items: center; border: 1px solid #232736; }
     #input-form:focus-within { border-color: #2563eb; }
@@ -227,7 +235,7 @@
     </div>
   </aside>
 
-  <!-- Main Chat Container -->
+  <!-- Main View -->
   <main id="chat-container">
     <div class="top-bar">
       <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
@@ -257,8 +265,6 @@
       if (saved) {
         try { sessions = JSON.parse(saved); } catch(e) { sessions = []; }
       }
-      
-      sessions = sessions.filter(s => s.messages && s.messages.length > 0);
 
       if (sessions.length > 0) {
         activeSessionId = sessions[0].id;
@@ -274,13 +280,14 @@
     }
 
     function saveToLocalStorage() {
-      const validSessions = sessions.filter(s => s.messages && s.messages.length > 0);
-      localStorage.setItem('chatbot_sessions', JSON.stringify(validSessions));
+      localStorage.setItem('chatbot_sessions', JSON.stringify(sessions));
     }
 
     function createNewChat() {
-      const currentSession = sessions.find(s => s.id === activeSessionId);
-      if (currentSession && currentSession.messages.length === 0) {
+      // If current chat is already empty, just keep focused on it
+      const current = sessions.find(s => s.id === activeSessionId);
+      if (current && current.messages.length === 0) {
+        renderSidebar();
         renderMessages();
         return;
       }
@@ -292,6 +299,7 @@
       };
       sessions.unshift(newSession);
       activeSessionId = newSession.id;
+      saveToLocalStorage();
       renderSidebar();
       renderMessages();
     }
@@ -326,9 +334,7 @@
       const listEl = document.getElementById('chat-list');
       listEl.innerHTML = '';
 
-      const visibleSessions = sessions.filter(s => s.messages.length > 0 || s.id === activeSessionId);
-
-      visibleSessions.forEach(session => {
+      sessions.forEach(session => {
         const div = document.createElement('div');
         div.className = `chat-item ${session.id === activeSessionId ? 'active' : ''}`;
         div.onclick = () => selectChat(session.id);
@@ -349,12 +355,46 @@
     }
 
     function copyCode(btn) {
-      const pre = btn.parentElement;
-      const code = pre.querySelector('code').innerText;
-      navigator.clipboard.writeText(code).then(() => {
+      const card = btn.closest('.code-card');
+      const codeText = card.querySelector('code').innerText;
+      navigator.clipboard.writeText(codeText).then(() => {
         btn.innerText = 'Copied!';
         setTimeout(() => { btn.innerText = 'Copy'; }, 2000);
       });
+    }
+
+    function formatMarkdown(text) {
+      // Configure marked parser
+      const parsedHTML = marked.parse(text);
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = parsedHTML;
+
+      // Wrap code blocks into code card containers with header and copy button
+      tempDiv.querySelectorAll('pre').forEach(pre => {
+        const codeEl = pre.querySelector('code');
+        const langClass = codeEl ? codeEl.className : '';
+        const langMatch = langClass.match(/language-(\w+)/);
+        const lang = langMatch ? langMatch[1] : 'code';
+
+        const card = document.createElement('div');
+        card.className = 'code-card';
+
+        card.innerHTML = `
+          <div class="code-header">
+            <span>${lang}</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+        `;
+
+        pre.parentNode.insertBefore(card, pre);
+        card.appendChild(pre);
+
+        if (codeEl) {
+          hljs.highlightElement(codeEl);
+        }
+      });
+
+      return tempDiv.innerHTML;
     }
 
     function renderMessages() {
@@ -386,21 +426,7 @@
         if (msg.role === 'user') {
           msgDiv.textContent = msg.content;
         } else {
-          // Parse Markdown and highlight code blocks
-          msgDiv.innerHTML = marked.parse(msg.content);
-          msgDiv.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightElement(block);
-            
-            // Add Copy Button to code block
-            const pre = block.parentElement;
-            if (!pre.querySelector('.copy-btn')) {
-              const copyBtn = document.createElement('button');
-              copyBtn.className = 'copy-btn';
-              copyBtn.innerText = 'Copy';
-              copyBtn.onclick = () => copyCode(copyBtn);
-              pre.appendChild(copyBtn);
-            }
-          });
+          msgDiv.innerHTML = formatMarkdown(msg.content);
         }
         messagesEl.appendChild(msgDiv);
       });
@@ -424,7 +450,6 @@
       inputEl.value = '';
       renderMessages();
 
-      // Scroll to the user's new message so you stay focused on your prompt
       const userMessages = document.querySelectorAll('.message.user');
       const lastUserMsg = userMessages[userMessages.length - 1];
       if (lastUserMsg) {
