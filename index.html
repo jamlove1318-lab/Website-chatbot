@@ -72,25 +72,33 @@
     .user-name { font-weight: 600; color: #fff; }
     .user-status { font-size: 11px; color: #38bdf8; font-weight: 500; }
 
-    /* Main Area */
-    #chat-container { flex: 1; display: flex; flex-direction: column; height: 100vh; background: #0b0f17; position: relative; }
+    /* Main Container (Flex column prevents input from disappearing) */
+    #chat-container { flex: 1; display: flex; flex-direction: column; height: 100vh; background: #0b0f17; }
     
-    .top-bar { display: flex; align-items: center; padding: 12px 20px; background: #0b0f17; border-bottom: 1px solid #1e293b; }
+    .top-bar { display: flex; align-items: center; padding: 12px 20px; background: #0b0f17; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .toggle-btn {
       background: #111625; border: 1px solid #1e293b; color: #94a3b8; cursor: pointer;
       padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
     }
     .toggle-btn:hover { background: #1e293b; color: #fff; }
 
-    /* Messages Stream */
+    /* Messages Container - Expands to fill available space and scrolls */
     #messages { 
-      flex: 1; overflow-y: auto; padding: 20px 16px 100px; display: flex; flex-direction: column;
-      gap: 20px; max-width: 800px; width: 100%; margin: 0 auto; scroll-behavior: smooth;
+      flex: 1; 
+      overflow-y: auto; 
+      padding: 20px 16px; 
+      display: flex; 
+      flex-direction: column;
+      gap: 20px; 
+      max-width: 800px; 
+      width: 100%; 
+      margin: 0 auto; 
+      scroll-behavior: smooth;
     }
     
     .empty-state {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; color: #64748b; margin-top: 40px;
+      text-align: center; color: #64748b; margin-top: 20px;
     }
     .empty-state h2 { color: #f8fafc; font-size: 22px; margin-bottom: 8px; font-weight: 600; }
     .empty-state p { font-size: 14px; margin-bottom: 24px; }
@@ -104,7 +112,7 @@
     }
     .suggestion-card:hover { border-color: #38bdf8; color: #f8fafc; background: #1e293b; }
 
-    /* Message Wrapper & Cards */
+    /* Message Formatting */
     .message-row { display: flex; gap: 12px; width: 100%; }
     .message-row.user-row { justify-content: flex-end; }
     
@@ -132,18 +140,21 @@
     }
     .copy-btn:hover { background: #334155; color: #fff; }
 
-    /* Floating Input */
+    /* Permanent Fixed Input Wrapper */
     .input-wrapper {
-      position: absolute; bottom: 0; left: 0; right: 0; padding: 16px;
-      background: linear-gradient(180deg, rgba(11,15,23,0) 0%, #0b0f17 50%);
+      flex-shrink: 0;
+      padding: 16px;
+      background: #0b0f17;
+      border-top: 1px solid #1e293b;
+      width: 100%;
     }
     #input-form {
       max-width: 800px; margin: 0 auto; display: flex; background: #111625;
-      border-radius: 20px; padding: 6px 8px 6px 16px; align-items: center; border: 1px solid #1e293b; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      border-radius: 16px; padding: 6px 8px 6px 16px; align-items: center; border: 1px solid #1e293b;
     }
     #input-form:focus-within { border-color: #2563eb; }
     #message-input { flex: 1; background: transparent; border: none; outline: none; color: #fff; padding: 8px 0; font-size: 15px; }
-    #send-btn { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 14px; font-weight: 600; cursor: pointer; }
+    #send-btn { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 12px; font-weight: 600; cursor: pointer; }
     #send-btn:hover { background: #1d4ed8; }
   </style>
 </head>
@@ -184,8 +195,10 @@
       </button>
     </div>
 
+    <!-- Scrollable Message List -->
     <div id="messages"></div>
 
+    <!-- Pinned Input Bar at Bottom -->
     <div class="input-wrapper">
       <form id="input-form" onsubmit="handleSend(event)">
         <input type="text" id="message-input" placeholder="Ask anything..." required autocomplete="off">
@@ -383,12 +396,6 @@
       });
     }
 
-    // Typewriter Streaming Animation for Bot Responses
-    async function streamBotResponse(targetElem, text) {
-      const formatted = formatMarkdown(text);
-      targetElem.innerHTML = formatted;
-    }
-
     async function handleSend(e) {
       if (e) e.preventDefault();
       const inputEl = document.getElementById('message-input');
@@ -407,7 +414,6 @@
       inputEl.value = '';
       renderMessages();
 
-      // Keep focus near prompt
       const userRows = document.querySelectorAll('.message-row.user-row');
       const lastUserRow = userRows[userRows.length - 1];
       if (lastUserRow) {
