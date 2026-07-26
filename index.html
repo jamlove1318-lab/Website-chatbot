@@ -4,9 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AI Workspace</title>
-  
-  <!-- Puter.js (Free Unlimited AI API) -->
-  <script src="https://js.puter.com/v2/"></script>
 
   <!-- Markdown Parser & Syntax Highlighting -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -389,6 +386,7 @@
       });
     }
 
+    // Direct, Unlimited Free AI call via Pollinations AI (Open-source Endpoint)
     async function handleSend(e) {
       if (e) e.preventDefault();
       closeSidebar();
@@ -418,20 +416,29 @@
       }
 
       try {
-        // Format prompt properly for Puter AI
-        const promptText = activeSession.messages.slice(0, -1).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+        // Format chat payload for Pollinations API
+        const payload = {
+          messages: activeSession.messages.slice(0, -1).map(m => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.content
+          })),
+          model: 'openai'
+        };
 
-        // Call puter.ai.chat directly
-        const response = await puter.ai.chat(promptText, { model: 'gpt-4o-mini' });
+        const response = await fetch('https://text.pollinations.ai/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const replyText = await response.text();
 
         activeSession.messages.pop(); // Remove "Thinking..."
-        
-        const replyText = typeof response === 'string' ? response : (response?.message?.content || response?.text || "No response generated.");
         activeSession.messages.push({ role: 'bot', content: replyText });
       } catch (err) {
         console.error(err);
         activeSession.messages.pop();
-        activeSession.messages.push({ role: 'bot', content: 'Error generating response. Please try again.' });
+        activeSession.messages.push({ role: 'bot', content: 'Error getting AI response. Please try again.' });
       }
 
       saveToLocalStorage();
