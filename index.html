@@ -386,7 +386,6 @@
       });
     }
 
-    // Keyless, Unauthenticated GET Endpoint
     async function handleSend(e) {
       if (e) e.preventDefault();
       closeSidebar();
@@ -416,16 +415,19 @@
       }
 
       try {
-        // Build prompt with conversation history context
-        const fullPrompt = activeSession.messages.slice(0, -1)
-          .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-          .join('\n');
+        // Send conversation history to our own /api/chat serverless function
+        const historyForApi = activeSession.messages
+          .slice(0, -1) // exclude the "Thinking..." placeholder
+          .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
 
-        // Use unauthenticated GET request
-        const url = `https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}`;
-        const response = await fetch(url);
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: historyForApi }),
+        });
 
-        const replyText = await response.text();
+        const data = await response.json();
+        const replyText = data.reply || data.error || 'No response received.';
 
         activeSession.messages.pop(); // Remove "Thinking..."
         activeSession.messages.push({ role: 'bot', content: replyText });
