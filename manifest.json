@@ -1,13 +1,13 @@
 {
-  "name": "GoPAL AI",
-  "short_name": "AI Chat",
-  "description": "A personal AI chat and image generation assistant",
+  "name": "Classic AI Studio",
+  "short_name": "AI Studio",
+  "description": "Classic AI Studio Chat Application",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
+  "background_color": "#121214",
+  "theme_color": "#121214",
   "orientation": "portrait",
-  "background_color": "#0b0f17",
-  "theme_color": "#0b0f17",
+  "scope": "/",
   "icons": [
     {
       "src": "/icon-192.png",
